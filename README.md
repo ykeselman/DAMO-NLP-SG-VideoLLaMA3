@@ -140,6 +140,10 @@ print(response)
 
 For more cases, please refer to [examples](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/inference/example_videollama3.py).
 
+### CookBook
+Checkout [inference notebooks](inference/notebooks/) that demonstrate how to use VideoLLaMA3 on various applications such as single image understanding, multi-image understanding, visual referring and grounding, video understanding, etc.
+
+
 ## 🤗 Demo
 
 It is highly recommended to try our [online demo](https://huggingface.co/spaces/lixin4ever/VideoLLaMA3) first.
