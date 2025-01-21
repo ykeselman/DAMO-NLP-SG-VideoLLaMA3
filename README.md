@@ -49,7 +49,22 @@ VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding</a><
 
 * **[2025.01.21]**  Release models and inference code of VideoLLaMA 3.
 
-![](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/assets/performance.jpg?raw=true)
+## 🌟 Introduction
+VideoLLaMA 3 is a series of multimodal foundation models with frontier image and video understanding capacity.
+
+<img src="assets/performance.png" style="max-width: 100%; height: auto;">
+
+<details>
+  <summary>💡Click here to show detailed performance on video benchmarks</summary>
+  <img src="assets/results_video_2b.png" style="max-width: 100%; height: auto;">
+  <img src="assets/results_video_7b.png" style="max-width: 100%; height: auto;">
+</details>
+
+<details>
+  <summary>💡Click here to show detailed performance on image benchmarks</summary>
+  <img src="assets/results_image_2b.png" style="max-width: 100%; height: auto;">
+  <img src="assets/results_image_7b.png" style="max-width: 100%; height: auto;">
+</details>
 
 ## 🛠️ Requirements and Installation
 
