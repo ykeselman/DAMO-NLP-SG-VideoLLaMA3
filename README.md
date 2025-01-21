@@ -101,7 +101,7 @@ pip install flash-attn --no-build-isolation
 | Model                | Base Model   | HF Link                                                      |
 | -------------------- | ------------ | ------------------------------------------------------------ |
 | VideoLLaMA3-7B       | Qwen2.5-7B   | [DAMO-NLP-SG/VideoLLaMA3-7B](https://huggingface.co/DAMO-NLP-SG/VideoLLaMA3-7B) |
-| VideoLLaMA3-2B       | Qwen2.5-1.5B | [DAMO-NLP-SG/VideoLLaMA3-7B](https://huggingface.co/DAMO-NLP-SG/VideoLLaMA3-2B) |
+| VideoLLaMA3-2B       | Qwen2.5-1.5B | [DAMO-NLP-SG/VideoLLaMA3-2B](https://huggingface.co/DAMO-NLP-SG/VideoLLaMA3-2B) |
 | VideoLLaMA3-7B-Image | Qwen2.5-7B   | [DAMO-NLP-SG/VideoLLaMA3-7B-Image](https://huggingface.co/DAMO-NLP-SG/VideoLLaMA3-7B-Image) |
 | VideoLLaMA3-2B-Image | Qwen2.5-1.5B | [DAMO-NLP-SG/VideoLLaMA3-2B-Image](https://huggingface.co/DAMO-NLP-SG/VideoLLaMA3-2B-Image) |
 
