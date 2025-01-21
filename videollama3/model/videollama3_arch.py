@@ -16,6 +16,7 @@
 import os
 import math
 from abc import ABC, abstractmethod
+from typing import List, Optional, Tuple, Union
 
 import einops
 import torch
@@ -131,205 +132,202 @@ class Videollama3MetaForCausalLM(ABC):
     def get_model(self):
         pass
 
-    def num_frames(self):
-        if hasattr(self.config, 'num_frames'):
-            return self.config.num_frames
-        else:
-            return NUM_FRAMES
-
-    def spatial_merge_size(self):
-        if hasattr(self.config, 'spatial_merge_size'):
-            return self.config.spatial_merge_size
-        else:
-            return 1
-
     def get_vision_encoder(self):
         return self.get_model().get_vision_encoder()
 
     def get_mm_projector(self):
         return self.get_model().get_mm_projector()
 
-    def encode_images(self,images, grid_thws):
-        """
-            images shape [b c h w]
-        """
-        images_features = self.get_model().get_vision_encoder()(images, grid_thws=grid_thws)
-        images_features = spatial_downsampling(images_features, grid_thws, stride=self.config.spatial_merge_size)
-        images_features = self.get_model().mm_projector(images_features)
+    def encode_images(
+        self,
+        pixel_values: torch.FloatTensor,
+        grid_sizes: torch.LongTensor,
+        merge_sizes: torch.LongTensor,
+    ) -> torch.FloatTensor:
+        mm_features = self.get_model().get_vision_encoder()(
+            pixel_values=pixel_values,
+            grid_sizes=grid_sizes,
+            merge_sizes=merge_sizes,
+        )
+        mm_features = self.get_model().mm_projector(mm_features)
+        return mm_features
 
-        return images_features
-
-    def prepare_inputs_labels_for_multimodal(
-        self, input_ids, attention_mask, past_key_values, labels, images, position_ids=None
+    def _get_valid_visual_tokens(
+        self,
+        mm_features: torch.FloatTensor,
+        batched_num_patches: torch.LongTensor,
+        modals: List[str],
     ):
-        if self.config.use_token_compression:
-            return self.prepare_inputs_labels_for_multimodal_with_compression(input_ids, attention_mask, past_key_values, labels, images, position_ids)
+        valid_masks = []
+        for num_patches, modal in zip(batched_num_patches, modals):
+            valid_mask = torch.full((num_patches, ), modal != "text", dtype=torch.bool, device=mm_features.device)
+            valid_masks.append(valid_mask)
+        mm_features = mm_features[torch.cat(valid_masks)]
+        return mm_features
 
-        # images shape (modal, tensor, flag)
-        vision_encoder = self.get_vision_encoder()
-        # NOTE: text-only situation
-        if vision_encoder is None or images is None or input_ids.shape[1] == 1:
-            return input_ids, attention_mask, past_key_values, None, labels, position_ids
-
-        # NOTE: Equvialent to the following code:
-        # images_tensor = [image      for modal, image, image_flag, grid_thw in images]
-        # images_flag   = [image_flag for modal, image, image_flag, grid_thw in images]
-        # grid_thws     = [grid_thw   for modal, image, image_flag, grid_thw in images]
-        modals, images, grid_thws = zip(*images)
-
-        images_flag = []
-        for modal, grid_thw in zip(modals, grid_thws):
-            grid_thw = torch.cat(grid_thw)
-            num_patches = grid_thw.prod(dim=-1).sum().div(self.config.spatial_merge_size**2).long()
-            image_flag = torch.full((num_patches, ), 0 if modal == 'text' else 1)
-            images_flag.append(image_flag)
-        images_flag_tensor = torch.cat(images_flag)
-
-        mm_features = self.encode_images(images, grid_thws)
-        mm_features = mm_features[images_flag_tensor.to(mm_features.device) == 1].to(input_ids.device)
-
-        image_selected = (input_ids == self.config.image_token_index)
-        audio_selected = (input_ids == MODAL_INDEX_MAP['<audio>'])
-        input_ids[image_selected] = 0
-        input_ids[audio_selected] = 0
-
-        input_embeds = self.get_model().embed_tokens(input_ids).clone()
-
-        B, N, C = input_embeds.shape
-        input_embeds = input_embeds.reshape(B * N, C).to(input_ids.device)
-        image_selected = image_selected.reshape(B * N)
-        audio_selected = audio_selected.reshape(B * N)
-
-        input_embeds[image_selected] = input_embeds[image_selected] * 0.0 + mm_features.reshape(-1, C)
-        input_embeds = input_embeds.reshape(B, N, C)
-
-        return None, attention_mask, past_key_values, input_embeds, labels, position_ids
-
-    def prepare_inputs_labels_for_multimodal_with_compression(
-        self, input_ids, attention_mask, past_key_values, labels, images, position_ids=None
+    def _maybe_truncate_visual_tokens(
+        self,
+        mm_features: torch.FloatTensor,
+        compression_mask: torch.BoolTensor,
+        batched_num_patches: torch.LongTensor,
+        modals: List[str],
+        input_ids: torch.LongTensor,
+        position_ids: Optional[torch.LongTensor] = None,
     ):
-        # images shape (modal, tensor, flag)
-        vision_encoder = self.get_vision_encoder()
-        # NOTE: text-only situation
-        if vision_encoder is None or images is None or input_ids.shape[1] == 1:
-            return input_ids, attention_mask, past_key_values, None, labels, position_ids
+        if position_ids is None or mm_features.shape[0] == input_ids.eq(self.config.image_token_index).sum():
+            return mm_features, compression_mask
 
-        # NOTE: Equvialent to the following code:
-        # images_tensor = [image      for modal, image, image_flag, grid_thw in images]
-        # images_flag   = [image_flag for modal, image, image_flag, grid_thw in images]
-        # grid_thws     = [grid_thw   for modal, image, image_flag, grid_thw in images]
-        modals, images, grid_thws = zip(*images)
+        truncation_mask = []
+        for num_patches, modal in zip(batched_num_patches, modals):
+            if modal == "text":
+                truncation_mask.append(torch.ones((0,), dtype=torch.bool, device=input_ids.device))
+            else:
+                truncation_mask.append(torch.ones((num_patches,), dtype=torch.bool, device=input_ids.device))
 
-        images_flag = []
-        visual_masks = []
-        visual_trunc_masks = []
+        seq_end_indices = torch.nonzero(position_ids == 0)[:, 0]
+        seq_end_indices = seq_end_indices[seq_end_indices > 0].tolist()+ [len(input_ids)]
+        seq_start_indices = [0] + seq_end_indices[:-1]
+        num_visual_tokens = [
+            input_ids[start:end].eq(self.config.image_token_index).sum()
+            for start, end in zip(seq_start_indices, seq_end_indices)
+        ]
 
-        for modal, image, grid_thw in zip(modals, images, grid_thws):
-            grid_thw = torch.cat(grid_thw)
-            num_patches = grid_thw.prod(dim=-1).sum().div(self.config.spatial_merge_size**2).long()
-            image_flag = torch.full((num_patches, ), 0 if modal == 'text' else 1)
-            images_flag.append(image_flag)
+        for n, mask in zip(num_visual_tokens, truncation_mask):
+            if len(mask) > 0:
+                mask[n:] = False
+        truncation_mask = torch.cat(truncation_mask)
 
-            if modal == "image" or (modal == "video" and len(image) == 1):
-                visual_masks.append(torch.ones((num_patches,), dtype=torch.bool, device=input_ids.device))
-                visual_trunc_masks.append(torch.ones((num_patches,), dtype=torch.bool, device=input_ids.device))
+        return mm_features[truncation_mask], compression_mask[truncation_mask]
+
+    def _get_compression_mask(
+        self,
+        pixel_values: torch.FloatTensor,
+        batched_num_patches: torch.LongTensor,
+        grid_sizes: torch.LongTensor,
+        merge_sizes: torch.LongTensor,
+        modals: List[str],
+        threshold: float = 0.1,
+        min_tokens: int = 1,
+    ) -> torch.BoolTensor:
+        batched_images = pixel_values.split(grid_sizes.prod(dim=1).tolist(), dim=0)
+        compression_masks = []
+
+        for images, num_patches, grid_size, merge_size, modal in zip(
+            batched_images, batched_num_patches, grid_sizes, merge_sizes, modals
+        ):
+            t, h, w = grid_size
+            if modal == "image" or (modal == "video" and t == 1):
+                compression_masks.append(torch.ones((num_patches,), dtype=torch.bool, device=images.device))
 
             elif modal == "video":
-                # NOTE: video frame compressor
-                n, h, w = len(image), grid_thw[0][1], grid_thw[0][2]
-                stride = self.config.spatial_merge_size
-                image = torch.stack(image, dim=0).view(n, (h // stride) * (w // stride), -1)
+                # NOTE: video token compressor
+                images = images.view(t, (h // merge_size) * (w // merge_size), -1)
 
-                threshold = 0.1
-                min_tokens = 1
-                pixel_diff = image[1:] - image[:-1]
+                pixel_diff = images[1:] - images[:-1]
                 pixel_diff = torch.abs(pixel_diff).mean(dim=-1) * 255
                 pixel_diff = torch.cat([torch.full_like(pixel_diff[0:1], threshold + 1), pixel_diff], dim=0)
-                # if dist.get_rank() == 0:
-                #     print(pixel_diff.shape, image.shape)
                 mask = pixel_diff > threshold
                 padding_ids = torch.nonzero(mask.sum(dim=1) < min_tokens)[:, 0]
                 # mask[padding_ids, torch.randperm(min_tokens)] = 1
                 mask[padding_ids, :min_tokens] = 1
-                visual_masks.append(mask.flatten())
-                visual_trunc_masks.append(torch.ones((num_patches,), dtype=torch.bool, device=input_ids.device))
+                compression_masks.append(mask.flatten())
 
-            elif modal == "text":
-                visual_trunc_masks.append(torch.ones((0,), dtype=torch.bool, device=input_ids.device))
+            else:
+                # in case of psuedo image
+                compression_masks.append(torch.ones((0,), dtype=torch.bool, device=images.device))
 
-        images_flag_tensor = torch.cat(images_flag)
+        return torch.cat(compression_masks)
 
-        mm_features = self.encode_images(images, grid_thws)
-        mm_features = mm_features[images_flag_tensor.to(mm_features.device) == 1]
-
-        B, N = input_ids.shape
-        C = mm_features.shape[-1]
-
-        assert B == 1, "Only support batch flattening for now"
-        input_ids = input_ids.view(B * N)
+    def _compress_visual_tokens(
+        self,
+        compression_mask: torch.BoolTensor,
+        mm_features: torch.FloatTensor,
+        input_ids: torch.LongTensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+    ):
+        mm_features = mm_features[compression_mask]
         image_selected = (input_ids == self.config.image_token_index)
-        audio_selected = (input_ids == MODAL_INDEX_MAP['<audio>'])
 
-        if len(visual_masks) > 0:
-            # if dist.get_rank() == 0:
-            #     print(grid_thws, [x.shape for x in visual_masks])
-            visual_masks = torch.cat(visual_masks)
-            # print((visual_masks == 1).sum(), (visual_masks == 0).sum())
-
-            mm_features = mm_features[visual_masks]
-            # text_masks = torch.zeros_like(input_ids, dtype=torch.bool)
-            # text_masks[~image_selected] = True
-            text_masks = torch.logical_not(image_selected)
-
-            try:
-                text_masks[image_selected] = visual_masks
-            except Exception as e:
-                assert position_ids is not None, "Position ids must be provided when shapes mismatch"
-                print(
-                    f'warning: {e}, text_masks[image_selected].shape={text_masks[image_selected].shape},',
-                    f'visual_masks.shape={visual_masks.shape}'
-                )
-
-                seq_end_indices = torch.nonzero(position_ids.view(B * N) == 0)[:, 0]
-                seq_end_indices = seq_end_indices[seq_end_indices > 0]
-                seq_end_indices = seq_end_indices.tolist()+ [len(input_ids)]
-                seq_start_indices = [0] + seq_end_indices[:-1]
-                num_visual_tokens = [
-                    input_ids[start:end].eq(self.config.image_token_index).sum()
-                    for start, end in zip(seq_start_indices, seq_end_indices)
-                ]
-
-                for n, mask in zip(num_visual_tokens, visual_trunc_masks):
-                    if len(mask) > 0:
-                        mask[n:] = False
-                visual_trunc_masks = torch.cat(visual_trunc_masks)
-
-                text_masks[image_selected] = visual_masks[visual_trunc_masks]
-                mm_features = mm_features[visual_trunc_masks[visual_masks]]
-
-        else:
-            text_masks = torch.ones_like(input_ids, dtype=torch.bool)
-
+        text_masks = torch.logical_not(image_selected)
+        text_masks[image_selected] = compression_mask
         input_ids = input_ids[text_masks]
+
         if attention_mask is not None:
-            attention_mask = attention_mask.view(B * N)[text_masks].reshape(1, -1)
+            attention_mask = attention_mask[text_masks]
         if labels is not None:
-            labels = labels.view(B * N)[text_masks].reshape(1, -1)
+            labels = labels[text_masks]
         if position_ids is not None:
-            position_ids = position_ids.view(B * N)[text_masks]
+            # FIXME: assume the first position_id is always 0
+            position_ids = position_ids[text_masks]
             pos_start = [0] + torch.nonzero(position_ids == 0)[:, 0].tolist()
             pos_end = pos_start[1:] + [len(input_ids)]
             position_ids = torch.cat([torch.arange(end - start, device=input_ids.device) for start, end in zip(pos_start, pos_end)])
-            position_ids = position_ids.reshape(1, -1)
 
+        return mm_features, input_ids, attention_mask, position_ids, labels
+
+    def prepare_inputs_labels_for_multimodal(
+        self,
+        input_ids: torch.LongTensor = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        labels: Optional[torch.LongTensor] = None,
+        pixel_values: Optional[torch.FloatTensor] = None,
+        grid_sizes: Optional[torch.LongTensor] = None,
+        merge_sizes: Optional[torch.LongTensor] = None,
+        modals: Optional[List[str]] = None,
+    ):
+        vision_encoder = self.get_vision_encoder()
+        # NOTE: text-only situation
+        if vision_encoder is None or pixel_values is None or input_ids.shape[1] == 1:
+            return input_ids, attention_mask, position_ids, past_key_values, None, labels
+
+        # 1. flatten text inputs
+        B, N = input_ids.shape
+        input_ids = input_ids.view(B * N)
+        if attention_mask is not None:
+            attention_mask = attention_mask.view(B * N)
+        if position_ids is not None:
+            position_ids = position_ids.view(B * N)
+        if labels is not None:
+            labels = labels.view(B * N)
+
+        # 2. embed visual tokens
+        batched_num_patches = grid_sizes.prod(dim=1).div(merge_sizes ** 2).long()
+        mm_features = self.encode_images(pixel_values, grid_sizes, merge_sizes)
+        mm_features = self._get_valid_visual_tokens(mm_features, batched_num_patches, modals)
+
+        compression_mask = self._get_compression_mask(
+            pixel_values, batched_num_patches, grid_sizes, merge_sizes, modals
+        )
+        mm_features, compression_mask = self._maybe_truncate_visual_tokens(
+            mm_features, compression_mask, batched_num_patches, modals, input_ids, position_ids
+        )
+
+        # 3. compress visual tokens
+        if self.config.use_token_compression:
+            assert B == 1, "Token compression is only supported for batch_size=1"
+            mm_features, input_ids, attention_mask, labels, position_ids = self._compress_visual_tokens(
+                compression_mask, mm_features, input_ids, attention_mask, labels, position_ids
+            )
+
+        # 4. embed text tokens
+        inputs_embeds = self.get_model().embed_tokens(input_ids).clone()
+
+        # 5. replace multimodal tokens with features
         image_selected = (input_ids == self.config.image_token_index)
-        audio_selected = (input_ids == MODAL_INDEX_MAP['<audio>'])
-        input_ids[image_selected] = 0
-        input_ids[audio_selected] = 0
+        inputs_embeds[image_selected] = inputs_embeds[image_selected] * 0.0 + mm_features   
 
-        input_embeds = self.get_model().embed_tokens(input_ids).clone()
+        # 6. reshape back to batched format
+        C = inputs_embeds.shape[-1]
+        inputs_embeds = inputs_embeds.reshape(B, -1, C)
+        if attention_mask is not None:
+            attention_mask = attention_mask.view(B, -1)
+        if labels is not None:
+            labels = labels.view(B, -1)
+        if position_ids is not None:
+            position_ids = position_ids.view(B, -1)
 
-        input_embeds[image_selected] = input_embeds[image_selected] * 0.0 + mm_features.reshape(-1, C)
-        new_input_embeds = input_embeds.reshape(1, -1, C)
-
-        return None, attention_mask, past_key_values, new_input_embeds, labels, position_ids
+        return None, attention_mask, position_ids, past_key_values, inputs_embeds, labels

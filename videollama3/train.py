@@ -40,9 +40,8 @@ from transformers.models.mixtral.modeling_mixtral import MixtralSparseMoeBlock
 
 sys.path.append('./')
 
-from videollama3.constants import (IGNORE_INDEX, MODAL_INDEX_MAP,
+from videollama3.constants import (IGNORE_INDEX,
     NUM_FRAMES, DEFAULT_IMAGE_TOKEN, STREAM_MAX_FRAMES,
-    STREAM_DOWNSAMPLING, STREAM_FPS, STREAM_IMAGE_SIZE,
     STREAM_START_TOKEN, STREAM_END_TOKEN)
 from videollama3.mm_utils import (load_images, load_video,
                                   tokenizer_multimodal_token)
@@ -98,8 +97,6 @@ class ModelArguments:
     mm_vision_select_feature: Optional[str] = field(default="patch")
     mm_attn_implementation: Optional[str] = field(default="flash_attention_2")
     # Token downsampling Arguments
-    spatial_merge_size: Optional[int] = field(default=1)
-    mm_max_length: Optional[int] = field(default=9477)
     use_token_compression: Optional[bool] = field(default=False)
 
 
@@ -115,6 +112,9 @@ class DataArguments:
     fps: Optional[int] = field(default=None)
     max_frames: Optional[int_with_none] = field(default=None)
     # Preprocess Arguments
+    image_merge_size: Optional[int] = field(default=1)
+    video_merge_size: Optional[int] = field(default=1)
+    mm_max_length: Optional[int] = field(default=10240)
     image_aspect_ratio: str = 'square'
     use_batch_flattening: bool = field(default=True, metadata={"help": "Whether to flatten the in-batch sequences of variable lengths."})
     dataset_cache_dir: Optional[str] = field(default=None)
@@ -254,11 +254,12 @@ class LazySupervisedDataset(Dataset):
             if isinstance(video_file, list) and len(video_file) == 1:
                 video_file = os.path.join(data_folder, video_file[0])
                 images, timestamps = load_video(video_file, fps=self.data_args.fps, max_frames=self.data_args.max_frames)
+                images = [images]
             else:
                 raise ValueError(f"Unsupported video format: {video_file}")
         else:
             modal = 'text'
-            images = []
+            images = None
 
         messages = []
         for conv in conversation:
@@ -279,22 +280,20 @@ class LazySupervisedDataset(Dataset):
                         if modal == 'image':
                             messages[-1]["content"].append({"type": "image"})
                         elif modal == 'video':
-                            messages[-1]["content"].append({"type": "video", "num_frames": len(images), "time": timestamps})
+                            messages[-1]["content"].append({"type": "video", "num_frames": len(images[0]), "time": timestamps})
             else:
                 messages.append({
                     "role": "assistant",
                     "content": conv['value']
                 })
 
-        # TODO: dynamic downsampling
-        image_downsampling = self.data_args.spatial_merge_size
-        # if modal == 'video':
-        #     image_downsampling = 2
-        # else:
-        #     # image/text
-        #     image_downsampling = 1
+        if modal == 'video':
+            merge_size = self.data_args.video_merge_size
+        else:
+            # image/text
+            merge_size = self.data_args.image_merge_size
 
-        return modal, images, messages, image_downsampling
+        return modal, images, messages, merge_size
 
     def _convert_stream(self, data_dict):
         video_path = os.path.join(self.data_args.data_folder, data_dict['video'][0])
@@ -304,8 +303,6 @@ class LazySupervisedDataset(Dataset):
             end_time=data_dict["end_time"],
             fps=self.data_args.fps,
             max_frames=self.data_args.max_frames,
-            size=STREAM_IMAGE_SIZE,
-            # size_divisible=14 * STREAM_DOWNSAMPLING,
         )
 
         if len(frames) > STREAM_MAX_FRAMES:
@@ -334,34 +331,34 @@ class LazySupervisedDataset(Dataset):
 
         frames = frames[:frame_idx]
 
-        # return "video", frames, messages, STREAM_DOWNSAMPLING
-        return "video", frames, messages, self.data_args.spatial_merge_size
+        return "video", [frames], messages, self.data_args.video_merge_size
 
     def __getitem__(self, i) -> Dict[str, torch.Tensor]:
         data_dict = self.list_data_dict[i]
 
         try:
             if "stream" in data_dict and data_dict["stream"]:
-                modal, images, messages, image_downsampling = self._convert_stream(data_dict)
+                modal, images, messages, merge_size = self._convert_stream(data_dict)
             else:
-                modal, images, messages, image_downsampling = self._convert_normal(data_dict)
+                modal, images, messages, merge_size = self._convert_normal(data_dict)
 
             data_dict = self.vlprocessor(
                 images=images,
                 text=messages,
-                image_downsampling=image_downsampling,
+                merge_size=merge_size,
                 return_labels=True,
                 return_tensors="pt",
             )
 
             if modal == 'text':
-                unit_size = self.vlprocessor.image_processor.patch_size**2 * 3 * self.vlprocessor.image_processor.temporal_patch_size
-                data_dict['images'] = [torch.zeros(self.data_args.spatial_merge_size**2, unit_size)]
-                data_dict['grid_thws'] = [torch.tensor([[1, self.data_args.spatial_merge_size, self.data_args.spatial_merge_size]])]
+                unit_size = self.vlprocessor.image_processor.patch_size**2 * 3
+                data_dict['pixel_values'] = torch.zeros(self.data_args.image_merge_size**2, unit_size)
+                data_dict['grid_sizes'] = torch.as_tensor([[1, self.data_args.image_merge_size, self.data_args.image_merge_size]])
+                data_dict['merge_sizes'] = torch.as_tensor([self.data_args.image_merge_size])
             elif modal == 'image' or modal == 'video':
-                assert len(data_dict['images']) > 0 and len(data_dict['grid_thws']) > 0, f"Invalid image data: {data_dict['images']}, {data_dict['grid_thws']}"
+                assert len(data_dict['pixel_values']) > 0 and len(data_dict['grid_sizes']) > 0, f"Invalid image data: {data_dict['images']}, {data_dict['grid_thws']}"
 
-            data_dict['modal'] = modal
+            data_dict['modals'] = [modal]
 
         except Exception as e:
             traceback.print_exc()
@@ -397,15 +394,10 @@ class DataCollatorForSupervisedDataset(object):
         )
 
         # work for 'images' argument in `prepare_inputs_labels_for_multimodal`
-        batch['images'] = []
-        for instance in instances:
-            # for modal_token in MODAL_INDEX_MAP.keys():
-            #     modal_token = modal_token.lower()
-            #     # MODAL_TOKEN shape like: <image>, <video>, ...
-            #     modal_name = re.findall(f'[<](.*)[>]', modal_token)
-            #     assert len(modal_name) == 1
-            #     modal_name = modal_name[0]
-            batch['images'].append((instance['modal'], instance['images'], instance['grid_thws']))
+        batch["pixel_values"] = torch.cat([x["pixel_values"] for x in instances])
+        batch["grid_sizes"] = torch.cat([x["grid_sizes"] for x in instances])
+        batch["merge_sizes"] = torch.cat([x["merge_sizes"] for x in instances])
+        batch["modals"] = sum([x["modals"] for x in instances], [])
 
         return batch
 
@@ -454,9 +446,10 @@ class DataCollatorWithFlatteningForSupervisedDataset(object):
         )
 
         # work for 'images' argument in `prepare_inputs_labels_for_multimodal`
-        batch['images'] = []
-        for instance in instances:
-            batch['images'].append((instance['modal'], instance['images'], instance['grid_thws']))
+        batch["pixel_values"] = torch.cat([x["pixel_values"] for x in instances])
+        batch["grid_sizes"] = torch.cat([x["grid_sizes"] for x in instances])
+        batch["merge_sizes"] = torch.cat([x["merge_sizes"] for x in instances])
+        batch["modals"] = sum([x["modals"] for x in instances], [])
 
         return batch
 
@@ -492,6 +485,7 @@ def train(attn_implementation=None):
         print(training_args)
 
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
+    model_args.torch_dtype = compute_dtype
 
     bnb_model_from_pretrained_args = {}
     if training_args.bits in [4, 8]:
@@ -518,9 +512,6 @@ def train(attn_implementation=None):
     config = VLLMConfigs[model_args.model_type].from_pretrained(model_args.model_path)
 
     config._attn_implementation = attn_implementation
-    # NOTE: active spatial_merge_size arguments
-    config.spatial_merge_size = model_args.spatial_merge_size
-    config.mm_max_length = model_args.mm_max_length
     config.use_token_compression = model_args.use_token_compression
 
     if model_args.vision_encoder is not None:
@@ -594,6 +585,9 @@ def train(attn_implementation=None):
         vision_encoder = model.get_vision_encoder()
         vision_encoder.to(dtype=compute_dtype, device=training_args.device)
 
+        mm_max_length = data_args.mm_max_length
+        vision_encoder.image_processor.max_tokens = mm_max_length
+
         mm_projector = model.get_mm_projector()
         mm_projector.to(dtype=compute_dtype if training_args.bf16 else torch.float16, device=training_args.device)
 
@@ -641,7 +635,6 @@ def train(attn_implementation=None):
             model.config.vision_encoder_lr is None
         )
         # 4. set spatial merge size as default
-        model.config.spatial_merge_size = data_args.spatial_merge_size = model_args.spatial_merge_size
         tokenizer.add_tokens([DEFAULT_IMAGE_TOKEN, STREAM_START_TOKEN, STREAM_END_TOKEN], special_tokens=True)
         model.config.image_token_index = tokenizer.convert_tokens_to_ids(DEFAULT_IMAGE_TOKEN)
 

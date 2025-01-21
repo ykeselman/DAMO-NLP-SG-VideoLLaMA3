@@ -68,14 +68,14 @@ def grid_divide(image, cell_size):
 
 def load_images(image_path):
     if isinstance(image_path, str) and os.path.isfile(image_path):
-        images = [cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)]
-        # images = [Image.open(image_path).convert('RGB')]
+        # images = [cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)]
+        images = [Image.open(image_path).convert('RGB')]
     elif isinstance(image_path, str) and os.path.isdir(image_path):
-        images = [cv2.cvtColor(cv2.imread(os.path.join(image_path, f)), cv2.COLOR_BGR2RGB) for f in sorted(os.listdir(image_path))]
-        # images = [Image.open(os.path.join(image_path, f)).convert('RGB') for f in sorted(os.listdir(image_path))]
+        # images = [cv2.cvtColor(cv2.imread(os.path.join(image_path, f)), cv2.COLOR_BGR2RGB) for f in sorted(os.listdir(image_path))]
+        images = [Image.open(os.path.join(image_path, f)).convert('RGB') for f in sorted(os.listdir(image_path))]
     elif isinstance(image_path, list) and isinstance(image_path[0], str):
-        images = [cv2.cvtColor(cv2.imread(f), cv2.COLOR_BGR2RGB) for f in image_path]
-        # images = [Image.open(f).convert('RGB') for f in image_path]
+        # images = [cv2.cvtColor(cv2.imread(f), cv2.COLOR_BGR2RGB) for f in image_path]
+        images = [Image.open(f).convert('RGB') for f in image_path]
     elif isinstance(image_path, list) and isinstance(image_path[0], Image.Image):
         images = image_path
     elif isinstance(image_path, Image.Image):

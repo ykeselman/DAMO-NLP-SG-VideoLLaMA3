@@ -143,8 +143,7 @@ class Videollama3Processor(ProcessorMixin):
     def _process_text_with_label(
         self,
         text: List[Dict],
-        image_grid_thw: torch.Tensor = None,
-        image_downsampling: Optional[int] = None,
+        grid_sizes: torch.Tensor = None,
         **kwargs,
     ):
         assert kwargs.pop("return_tensors", "pt") == "pt", "Only PyTorch tensors are supported when return_labels=True."
@@ -162,8 +161,8 @@ class Videollama3Processor(ProcessorMixin):
             prompt = []
             for chunk_idx in range(len(prompt_chunks) - 1):
                 prompt.append(prompt_chunks[chunk_idx])
-                thw = image_grid_thw[image_idx]
-                prompt.append(DEFAULT_IMAGE_TOKEN * (thw.prod() / image_downsampling**2).long())
+                thw = grid_sizes[image_idx]
+                prompt.append(DEFAULT_IMAGE_TOKEN * thw.prod().long())
                 image_idx += 1
             prompt.append(prompt_chunks[-1])
             prompt = "".join(prompt)
@@ -191,7 +190,7 @@ class Videollama3Processor(ProcessorMixin):
             targets_list.append(targets)
             sample_types_list.append(sample_types)
 
-        assert len(image_grid_thw) == image_idx, "Number of images does not match the number of image tokens in the text."
+        assert len(grid_sizes) == image_idx, "Number of images does not match the number of image tokens in the text."
 
         targets = torch.cat(targets_list)
         sample_types = torch.cat(sample_types_list)
@@ -217,8 +216,7 @@ class Videollama3Processor(ProcessorMixin):
     def _process_text_without_label(
         self,
         text: Union[List[str], List[Dict]],
-        image_grid_thw: torch.Tensor = None,
-        image_downsampling: Optional[int] = None,
+        grid_sizes: torch.Tensor = None,
         **kwargs,
     ):
         if isinstance(text[0], dict):
@@ -228,11 +226,11 @@ class Videollama3Processor(ProcessorMixin):
         image_idx = 0
         for i in range(len(text)):
             while DEFAULT_IMAGE_TOKEN in text[i]:
-                thw = image_grid_thw[image_idx]
-                text[i] = text[i].replace(DEFAULT_IMAGE_TOKEN, "<placeholder>" * (thw.prod() / image_downsampling**2).long(), 1)
+                thw = grid_sizes[image_idx]
+                text[i] = text[i].replace(DEFAULT_IMAGE_TOKEN, "<placeholder>" * thw.prod().long(), 1)
                 image_idx += 1
             text[i] = text[i].replace("<placeholder>", DEFAULT_IMAGE_TOKEN)
-        assert len(image_grid_thw) == image_idx, "Number of images does not match the number of image tokens in the text."
+        assert len(grid_sizes) == image_idx, "Number of images does not match the number of image tokens in the text."
 
         text_inputs = self.tokenizer(text, **kwargs)
         return text_inputs
@@ -240,8 +238,8 @@ class Videollama3Processor(ProcessorMixin):
     def _process_text(
         self,
         text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput], List[Dict]],
-        image_grid_thw: torch.Tensor = None,
-        image_downsampling: Optional[int] = None,
+        image_inputs: Dict[str, torch.Tensor] = {},
+        merge_size: Optional[int] = None,
         return_labels: bool = False,
         **kwargs,
     ):
@@ -249,39 +247,35 @@ class Videollama3Processor(ProcessorMixin):
             text = [text]
         assert len(text), "At least one text must be provided."
 
+        grid_sizes = []
+        for grid_size in image_inputs.get("grid_sizes", []):
+            if not torch.all(grid_size[1:] % merge_size == 0):
+                warnings.warn(f"Grid size {grid_size} is not divisible by merge size. Some undesired errors may occur.")
+            if grid_size[0] == 1:
+                grid_sizes.append(grid_size[1:] / merge_size)
+            elif grid_size[0] > 1:
+                grid_sizes.extend([grid_size[1:] / merge_size] * grid_size[0])
+
         if return_labels:
-            return self._process_text_with_label(text, image_grid_thw, image_downsampling, **kwargs)
-        return self._process_text_without_label(text, image_grid_thw, image_downsampling, **kwargs)
+            return self._process_text_with_label(text, grid_sizes, **kwargs)
+        return self._process_text_without_label(text, grid_sizes, **kwargs)
 
     def _process_image(
         self,
         images: ImageInput = None,
-        image_downsampling: Optional[int] = None,
+        merge_size: Optional[int] = 1,
         **kwargs,
     ):
-        if image_downsampling is None:
-            image_downsampling = self.image_processor.merge_size
-
-        image_inputs = {
-            "images": [],
-            "grid_thws": [],
-            "image_downsampling": image_downsampling
-        }
-        if images is not None and len(images) > 0:
-            for image in images:
-                outputs = self.image_processor(images=image, num_images=len(images), **kwargs)
-                # images shapes like: [tensor([patches, 1176]), ...]
-                # grid_thws shapes like: tensor([num_images, 3])
-                image_inputs["images"].append(outputs["pixel_values"])
-                image_inputs["grid_thws"].append(outputs["image_grid_thw"])
-
+        if images is None:
+            return {}
+        image_inputs = self.image_processor(images=images, merge_size=merge_size, **kwargs)
         return image_inputs
 
     def __call__(
         self,
         text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput], List[Dict]] = None,
         images: ImageInput = None,
-        image_downsampling: Optional[int] = None,
+        merge_size: Optional[int] = 1,
         return_labels: bool = False,
         **kwargs: Unpack[Videollama3ProcessorKwargs],
     ) -> BatchFeature:
@@ -314,7 +308,7 @@ class Videollama3Processor(ProcessorMixin):
               `return_attention_mask=True` or if *"attention_mask"* is in `self.model_input_names` and if `text` is not
               `None`).
             - **pixel_values** -- Pixel values to be fed to a model. Returned when `images` is not `None`.
-            - **image_grid_thw** -- List of image 3D grid in LLM. Returned when `images` is not `None`.
+            - **grid_sizes** -- List of image 3D grid in LLM. Returned when `images` is not `None`.
         """
         output_kwargs = self._merge_kwargs(
             Videollama3ProcessorKwargs,
@@ -324,8 +318,8 @@ class Videollama3Processor(ProcessorMixin):
         output_kwargs["text_kwargs"].pop("padding")
         output_kwargs["text_kwargs"].pop("padding_side")
 
-        image_inputs = self._process_image(images, image_downsampling, **output_kwargs["images_kwargs"])
-        text_inputs = self._process_text(text, image_inputs["grid_thws"], image_downsampling, return_labels, **output_kwargs["text_kwargs"])
+        image_inputs = self._process_image(images, merge_size, **output_kwargs["images_kwargs"])
+        text_inputs = self._process_text(text, image_inputs, merge_size, return_labels, **output_kwargs["text_kwargs"])
 
         return BatchFeature(data={**text_inputs, **image_inputs})
 

@@ -47,7 +47,6 @@ class Videollama3Qwen2ForCausalLM(Qwen2ForCausalLM, Videollama3MetaForCausalLM):
     def __init__(self, config, **kwargs):
         super(Qwen2ForCausalLM, self).__init__(config)
         self.model = Videollama3Qwen2Model(config)
-        # self.pretraining_tp = config.pretraining_tp
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
@@ -57,6 +56,7 @@ class Videollama3Qwen2ForCausalLM(Qwen2ForCausalLM, Videollama3MetaForCausalLM):
     def get_model(self):
         return self.model
 
+    # NOTE: arguments are copied from transformers==4.46.3
     def forward(
         self,
         input_ids: torch.LongTensor = None,
@@ -68,25 +68,34 @@ class Videollama3Qwen2ForCausalLM(Qwen2ForCausalLM, Videollama3MetaForCausalLM):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        images: Optional[torch.FloatTensor] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[int] = None,
-        **kwargs
+        cache_position: Optional[torch.LongTensor] = None,
+        num_logits_to_keep: int = 0,
+        # multimodal inputs
+        pixel_values: Optional[torch.FloatTensor] = None,
+        grid_sizes: Optional[torch.LongTensor] = None,
+        merge_sizes: Optional[torch.LongTensor] = None,
+        modals: Optional[List[str]] = None,
+        **loss_kwargs,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
-
         if inputs_embeds is None:
             (
                 input_ids,
                 attention_mask,
+                position_ids,
                 past_key_values,
                 inputs_embeds,
-                labels, position_ids
-            ) = self.prepare_inputs_labels_for_multimodal(
-                input_ids,
-                attention_mask,
-                past_key_values,
                 labels,
-                images, position_ids
+            ) = self.prepare_inputs_labels_for_multimodal(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                labels=labels,
+                pixel_values=pixel_values,
+                grid_sizes=grid_sizes,
+                merge_sizes=merge_sizes,
+                modals=modals,
             )
 
         return super().forward(
@@ -101,38 +110,49 @@ class Videollama3Qwen2ForCausalLM(Qwen2ForCausalLM, Videollama3MetaForCausalLM):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
+            num_logits_to_keep=num_logits_to_keep,
+            **loss_kwargs,
         )
 
     @torch.no_grad()
     def generate(
         self,
-        inputs: Optional[torch.Tensor] = None,
-        images: Optional[torch.Tensor] = None,
+        # multimodal inputs
+        pixel_values: Optional[torch.FloatTensor] = None,
+        grid_sizes: Optional[torch.LongTensor] = None,
+        merge_sizes: Optional[torch.LongTensor] = None,
+        modals: Optional[List[str]] = None,
         **kwargs,
     ) -> Union[GenerateOutput, torch.LongTensor]:
-        position_ids = kwargs.pop("position_ids", None)
+        input_ids = kwargs.pop("input_ids", None)
         attention_mask = kwargs.pop("attention_mask", None)
+        position_ids = kwargs.pop("position_ids", None)
+        past_key_values = kwargs.pop("past_key_values", None)
+
         if "inputs_embeds" in kwargs:
             raise NotImplementedError("`inputs_embeds` is not supported")
 
-        if images is not None:
+        if pixel_values is not None:
             (
                 input_ids,
                 attention_mask,
+                position_ids,
                 past_key_values,
                 inputs_embeds,
-                _,
-                position_ids
+                labels,
             ) = self.prepare_inputs_labels_for_multimodal(
-                input_ids=inputs,
+                input_ids=input_ids,
                 attention_mask=attention_mask,
-                past_key_values=None,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
                 labels=None,
-                images=images,
-                position_ids=position_ids
+                pixel_values=pixel_values,
+                grid_sizes=grid_sizes,
+                merge_sizes=merge_sizes,
+                modals=modals,
             )
         else:
-            inputs_embeds = self.get_model().embed_tokens(inputs)
+            inputs_embeds = self.get_model().embed_tokens(input_ids)
 
         return super().generate(
             position_ids=position_ids,

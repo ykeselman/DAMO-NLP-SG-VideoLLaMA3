@@ -28,10 +28,6 @@ DEFAULT_AUDIO_TOKEN = "<audio>"
 # Stream arguments
 STREAM_START_TOKEN = "<|stream_start|>"
 STREAM_END_TOKEN = "<|stream_end|>"
-STREAM_IMAGE_TOKEN = "<stream_image>"
-STREAM_FPS = 2
-STREAM_IMAGE_SIZE = 224
-STREAM_DOWNSAMPLING = 4
 STREAM_MAX_FRAMES = 400
 
 MODAL_INDEX_MAP = {
