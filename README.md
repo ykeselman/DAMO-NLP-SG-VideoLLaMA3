@@ -188,7 +188,7 @@ If you find VideoLLaMA useful for your research and applications, please cite us
 
 ```bibtex
 @article{damonlpsg2025videollama3,
-  title={VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding},
+  title={VideoLLaMA 3: Frontier Multimodal Foundation Models for Image and Video Understanding},
   author={Boqiang Zhang, Kehan Li, Zesen Cheng, Zhiqiang Hu, Yuqian Yuan, Guanzheng Chen, Sicong Leng, Yuming Jiang, Hang Zhang, Xin Li, Peng Jin, Wenqi Zhang, Fan Wang, Lidong Bing, Deli Zhao},
   journal={arXiv preprint arXiv:2501.xxxxx},
   year={2025},
