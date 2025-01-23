@@ -23,7 +23,11 @@ VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding</a><
 
 > [**VideoLLaMA 2: Advancing Spatial-Temporal Modeling and Audio Understanding in Video-LLMs**](https://github.com/DAMO-NLP-SG/VideoLLaMA2) <br>
 > Zesen Cheng*, Sicong Leng*, Hang Zhang*, Yifei Xin*, Xin Li*, Guanzheng Chen, Yongxin Zhu, Wenqi Zhang, Ziyang Luo, Deli Zhao, Lidong Bing <br>
-[![github](https://img.shields.io/badge/-Github-black?logo=github)](https://github.com/DAMO-NLP-SG/VideoLLaMA2)  [![github](https://img.shields.io/github/stars/DAMO-NLP-SG/VideoLLaMA2.svg?style=social)](https://github.com/DAMO-NLP-SG/VideoLLaMA2) [![arXiv](https://img.shields.io/badge/Arxiv-2406.07476-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2406.07476) <br>
+[![github](https://img.shields.io/badge/-Github-black?logo=github)](https://github.com/DAMO-NLP-SG/VideoLLaMA2)  [![github](https://img.shields.io/github/stars/DAMO-NLP-SG/VideoLLaMA2.svg?style=social)](https://github.com/DAMO-NLP-SG/VideoLLaMA2) [![arXiv](https://img.shields.io/badge/Arxiv-2406.07476-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2406.07476) <be> 
+
+> [**VideoRefer Suite: Advancing Spatial-Temporal Object Understanding with Video LLM**](https://arxiv.org/abs/2501.00599) <br>
+> Yuqian Yuan, Hang Zhang, Wentong Li, Zesen Cheng, Boqiang Zhang, Long Li, Xin Li, Deli Zhao, Wenqiao Zhang, Yueting Zhuang, Jianke Zhu, Lidong Bing <br>
+[![github](https://img.shields.io/badge/-Github-black?logo=github)](https://github.com/DAMO-NLP-SG/VideoRefer)  [![github](https://img.shields.io/github/stars/DAMO-NLP-SG/VideoRefer.svg?style=social)](https://github.com/DAMO-NLP-SG/VideoRefer)  [![arXiv](https://img.shields.io/badge/Arxiv-2501.00599-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2501.00599) <br>
 
 > [**VCD: Mitigating Object Hallucinations in Large Vision-Language Models through Visual Contrastive Decoding**](https://arxiv.org/abs/2311.16922) <br>
 > Sicong Leng*, Hang Zhang*, Guanzheng Chen, Xin Li, Shijian Lu, Chunyan Miao, Lidong Bing <br>
@@ -37,9 +41,7 @@ VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding</a><
 > Zesen Cheng*, Hang Zhang*, Kehan Li*, Sicong Leng, Zhiqiang Hu, Fei Wu, Deli Zhao, Xin Li, Lidong Bing <br>
 [![github](https://img.shields.io/badge/-Github-black?logo=github)](https://github.com/DAMO-NLP-SG/Inf-CLIP)  [![github](https://img.shields.io/github/stars/DAMO-NLP-SG/Inf-CLIP.svg?style=social)](https://github.com/DAMO-NLP-SG/Inf-CLIP)  [![arXiv](https://img.shields.io/badge/Arxiv-2410.17243-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2410.17243) <br>
 
-> [**VideoRefer Suite: Advancing Spatial-Temporal Object Understanding with Video LLM**](https://arxiv.org/abs/2501.00599) <br>
-> Yuqian Yuan, Hang Zhang, Wentong Li, Zesen Cheng, Boqiang Zhang, Long Li, Xin Li, Deli Zhao, Wenqiao Zhang, Yueting Zhuang, Jianke Zhu, Lidong Bing <br>
-[![github](https://img.shields.io/badge/-Github-black?logo=github)](https://github.com/DAMO-NLP-SG/VideoRefer)  [![github](https://img.shields.io/github/stars/DAMO-NLP-SG/VideoRefer.svg?style=social)](https://github.com/DAMO-NLP-SG/VideoRefer)  [![arXiv](https://img.shields.io/badge/Arxiv-2501.00599-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2501.00599) <br>
+
 
 
 </p></details>
@@ -190,9 +192,9 @@ If you find VideoLLaMA useful for your research and applications, please cite us
 @article{damonlpsg2025videollama3,
   title={VideoLLaMA 3: Frontier Multimodal Foundation Models for Image and Video Understanding},
   author={Boqiang Zhang, Kehan Li, Zesen Cheng, Zhiqiang Hu, Yuqian Yuan, Guanzheng Chen, Sicong Leng, Yuming Jiang, Hang Zhang, Xin Li, Peng Jin, Wenqi Zhang, Fan Wang, Lidong Bing, Deli Zhao},
-  journal={arXiv preprint arXiv:2501.xxxxx},
+  journal={arXiv preprint arXiv:2501.13106},
   year={2025},
-  url = {https://arxiv.org/abs/2501.xxxxx}
+  url = {https://arxiv.org/abs/2501.13106}
 }
 
 @article{damonlpsg2024videollama2,
@@ -213,7 +215,7 @@ If you find VideoLLaMA useful for your research and applications, please cite us
 ```
 
 ## 👍 Acknowledgement
-Our VideoLLaMA3 is built on top of [**SigLip**](https://huggingface.co/google/siglip-so400m-patch14-384) and [**Qwen2.5**](https://github.com/QwenLM/Qwen2.5). We also learn a lot from the implementation of [**LLaVA-OneVision**](https://github.com/LLaVA-VL/LLaVA-NeXT), [**InternVL2**](https://internvl.github.io/blog/2024-07-02-InternVL-2.0/), and [**Qwen2VL**](https://github.com/QwenLM/Qwen2-VL).  
+Our VideoLLaMA3 is built on top of [**SigLip**](https://huggingface.co/google/siglip-so400m-patch14-384) and [**Qwen2.5**](https://github.com/QwenLM/Qwen2.5). We also learned a lot from the implementation of [**LLaVA-OneVision**](https://github.com/LLaVA-VL/LLaVA-NeXT), [**InternVL2**](https://internvl.github.io/blog/2024-07-02-InternVL-2.0/), and [**Qwen2VL**](https://github.com/QwenLM/Qwen2-VL). Besides, our VideoLLaMA3 benefits from tons of open-source efforts. We sincerely appreciate these efforts and compile a list in [ACKNOWLEDGEMENT.md](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/ACKNOWLEDGEMENT.md) to express our gratitude. If your work is used in VideoLLaMA3 but not mentioned in either this repo or the technical report, feel free to let us know :heart:.
 
 
 ## 🔒 License
