@@ -2,7 +2,7 @@
     <img src="https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/assets/logo.png?raw=true" width="150" style="margin-bottom: 0.2;"/>
 <p>
 
-<h3 align="center"><a href="" style="color:#9C276A">
+<h3 align="center"><a href="https://arxiv.org/pdf/2501.13106" style="color:#9C276A">
 VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding</a></h3>
 <h5 align="center"> If our project helps you, please give us a star ⭐ on GitHub to support us. 🙏🙏 </h2>
 
