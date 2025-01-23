@@ -58,8 +58,8 @@ VideoLLaMA 3 is a series of multimodal foundation models with frontier image and
 
 <details>
   <summary>💡Click here to show detailed performance on video benchmarks</summary>
-  <img src="assets/results_video_2b.png" style="max-width: 100%; height: auto;">
-  <img src="assets/results_video_7b.png" style="max-width: 100%; height: auto;">
+  <img src="https://github.com/user-attachments/assets/4b9d45e3-8374-4468-a8d2-09d70b8bb596" style="max-width: 100%; height: auto;">
+  <img src="https://github.com/user-attachments/assets/5f6d6b25-2d3b-44ab-b791-d3af807534a5" style="max-width: 100%; height: auto;">
 </details>
 
 <details>
