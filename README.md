@@ -9,7 +9,8 @@ VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding</a><
 
 <h5 align="center">
 
-[![hf_space](https://img.shields.io/badge/🤗-Demo-9C276A.svg)](https://huggingface.co/spaces/lixin4ever/VideoLLaMA3)
+[![hf_space](https://img.shields.io/badge/🤗-Image_Demo-9C276A.svg)](https://huggingface.co/spaces/lixin4ever/VideoLLaMA3-Image)
+[![hf_space](https://img.shields.io/badge/🤗-Video_Demo-9C276A.svg)](https://huggingface.co/spaces/lixin4ever/VideoLLaMA3)
 [![hf_checkpoint](https://img.shields.io/badge/🤗-Checkpoints-9C276A.svg)](https://huggingface.co/collections/DAMO-NLP-SG/videollama3-678cdda9281a0e32fe79af15) <br>
 [![License](https://img.shields.io/badge/License-Apache%202.0-yellow)](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/LICENSE) 
 [![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FDAMO-NLP-SG%2FVideoLLaMA3&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=Visitor&edge_flat=false)](https://hits.seeyoufarm.com)
@@ -50,6 +51,7 @@ VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding</a><
 
 ## 📰 News
 
+* **[2025.01.24]**  🔥🔥 As of Jan 24, VideoLLaMA3-7B is the best 7B-sized model on [VideoMME](https://video-mme.github.io/home_page.html) leaderboard.
 * **[2025.01.22]**  👋👋 Release technical report of VideoLLaMA 3. If you have works closely related to VideoLLaMA 3 but not mentioned in the paper, feel free to let us know.
 * **[2025.01.21]**  Release models and inference code of VideoLLaMA 3.
 
@@ -60,8 +62,8 @@ VideoLLaMA 3 is a series of multimodal foundation models with frontier image and
 
 <details>
   <summary>💡Click here to show detailed performance on video benchmarks</summary>
-  <img src="https://github.com/user-attachments/assets/4b9d45e3-8374-4468-a8d2-09d70b8bb596" style="max-width: 100%; height: auto;">
-  <img src="https://github.com/user-attachments/assets/5f6d6b25-2d3b-44ab-b791-d3af807534a5" style="max-width: 100%; height: auto;">
+  <img src="https://github.com/user-attachments/assets/118e7a56-0c3e-4132-b0b5-f516d0654338" style="max-width: 100%; height: auto;">
+  <img src="https://github.com/user-attachments/assets/3524cefe-01d3-4031-8620-f85dc38e3d02" style="max-width: 100%; height: auto;">
 </details>
 
 <details>
