@@ -50,6 +50,7 @@ VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding</a><
 
 ## 📰 News
 
+* **[2025.01.22]**  👋👋 Release technical report of VideoLLaMA 3. If you have works closely related to VideoLLaMA 3 but not mentioned in the paper, feel free to let us know.
 * **[2025.01.21]**  Release models and inference code of VideoLLaMA 3.
 
 ## 🌟 Introduction
