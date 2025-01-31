@@ -163,7 +163,14 @@ print(response)
 For more cases, please refer to [examples](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/inference/example_videollama3.py).
 
 ### CookBook
-Checkout [inference notebooks](inference/notebooks/) that demonstrate how to use VideoLLaMA3 on various applications such as single image understanding, multi-image understanding, visual referring and grounding, video understanding, etc.
+Checkout [inference notebooks](inference/notebooks/) that demonstrate how to use VideoLLaMA3 on various applications such as single-image understanding, multi-image understanding, visual referring and grounding, video understanding, etc.
+
+| Notebooks                | Description   |
+| :-------------------- | ------------------------------------------------------------------------ |
+| [Image Understanding](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/inference/notebooks/01_single_image_understanding.ipynb)      | Demonstrations of using VideoLLaMA 3 for **basic image understanding**, **chart analysis**, **table understanding**, **document recognition**, and **visual code analysis**|
+| [Multi-image Understanding](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/inference/notebooks/02_multi_image_understanding.ipynb)       | Demonstrations of using VideoLLaMA 3 for **multi-image comparison and understanding** |
+| [Fine-grained Image Recognition & Understanding](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/inference/notebooks/03_visual_referring_and_grounding.ipynb) | Demonstrations of using VideoLLaMA 3 for **visual referring & grounding** |
+| [Video Understanding](https://github.com/DAMO-NLP-SG/VideoLLaMA3/blob/main/inference/notebooks/04_video_understanding.ipynb) | Demonstrations of using VideoLLaMA 3 for **long video understanding** and **temporal grounding** |
 
 
 ## 🤗 Demo
