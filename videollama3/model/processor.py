@@ -31,9 +31,8 @@ from transformers.image_utils import ImageInput, VideoInput
 from transformers.processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 
-import sys
-sys.path.append(".")
 from videollama3.constants import DEFAULT_IMAGE_TOKEN, IGNORE_INDEX
+from videollama3.mm_utils import load_video, load_images
 
 
 DEFAULT_CHAT_TEMPLATE = """
@@ -60,8 +59,8 @@ DEFAULT_CHAT_TEMPLATE += """
 DEFAULT_CHAT_TEMPLATE += """
             {% elif content['type'] == 'video' or 'video' in content or 'video_url' in content %}
                 {% for i in range(content['num_frames']) %}
-                    {% if 'time' in content %}
-                        {{- 'Time ' + content['time'][i] | round(1) | string + 's:' -}}
+                    {% if 'timestamps' in content %}
+                        {{- 'Time ' + content['timestamps'][i] | round(1) | string + 's:' -}}
                     {% endif %}
                     {% if i < content['num_frames'] - 1 %}
 """
@@ -77,7 +76,7 @@ DEFAULT_CHAT_TEMPLATE += """
 DEFAULT_CHAT_TEMPLATE += """
                     {% endif %}
                 {% endfor %}
-            {% elif 'text' in content %}
+            {% elif content['type'] == 'text' or 'text' in content %}
                 {{- content['text'] -}}
             {% endif %}
         {% endfor %}
@@ -120,6 +119,7 @@ class Videollama3Processor(ProcessorMixin):
             chat_template = DEFAULT_CHAT_TEMPLATE
         # super().__init__(image_processor, tokenizer, chat_template=chat_template)
         tokenizer.chat_template = chat_template
+        self.chat_template = chat_template
         self.image_processor = image_processor
         self.tokenizer = tokenizer
         self.generation_prompt = self._infer_generation_prompt()
@@ -133,6 +133,12 @@ class Videollama3Processor(ProcessorMixin):
 
     def get_generation_prompt_ids(self):
         return self.generation_prompt_ids
+
+    def load_video(self, *args, **kwargs):
+        return load_video(*args, **kwargs)
+
+    def load_images(self, *args, **kwargs):
+        return load_images(*args, **kwargs)
 
     def _infer_generation_prompt(self):
         pseudo_message = [{"role": "user", "content": ""}]
@@ -235,20 +241,22 @@ class Videollama3Processor(ProcessorMixin):
         text_inputs = self.tokenizer(text, **kwargs)
         return text_inputs
 
-    def _process_text(
+    def process_text(
         self,
         text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput], List[Dict]],
         image_inputs: Dict[str, torch.Tensor] = {},
-        merge_size: Optional[int] = None,
         return_labels: bool = False,
         **kwargs,
     ):
+        kwargs.pop("padding", None)
+        kwargs.pop("padding_side", None)
+
         if not isinstance(text, (list, tuple)):
             text = [text]
         assert len(text), "At least one text must be provided."
 
         grid_sizes = []
-        for grid_size in image_inputs.get("grid_sizes", []):
+        for grid_size, merge_size in zip(image_inputs.get("grid_sizes", []), image_inputs.get("merge_sizes", [])):
             if not torch.all(grid_size[1:] % merge_size == 0):
                 warnings.warn(f"Grid size {grid_size} is not divisible by merge size. Some undesired errors may occur.")
             if grid_size[0] == 1:
@@ -260,7 +268,7 @@ class Videollama3Processor(ProcessorMixin):
             return self._process_text_with_label(text, grid_sizes, **kwargs)
         return self._process_text_without_label(text, grid_sizes, **kwargs)
 
-    def _process_image(
+    def process_images(
         self,
         images: ImageInput = None,
         merge_size: Optional[int] = 1,
@@ -318,8 +326,8 @@ class Videollama3Processor(ProcessorMixin):
         output_kwargs["text_kwargs"].pop("padding")
         output_kwargs["text_kwargs"].pop("padding_side")
 
-        image_inputs = self._process_image(images, merge_size, **output_kwargs["images_kwargs"])
-        text_inputs = self._process_text(text, image_inputs, merge_size, return_labels, **output_kwargs["text_kwargs"])
+        image_inputs = self.process_images(images, merge_size, **output_kwargs["images_kwargs"])
+        text_inputs = self.process_text(text, image_inputs, return_labels, **output_kwargs["text_kwargs"])
 
         return BatchFeature(data={**text_inputs, **image_inputs})
 

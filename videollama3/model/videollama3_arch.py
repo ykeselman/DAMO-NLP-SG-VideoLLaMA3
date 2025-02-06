@@ -55,9 +55,9 @@ class Videollama3MetaModel:
     def __init__(self, config):
         super(Videollama3MetaModel, self).__init__(config)
 
-        if hasattr(config, "mm_vision_encoder"):
+        if hasattr(config, "vision_encoder") or hasattr(config, "mm_vision_encoder"):
             self.vision_encoder = build_vision_encoder(config, delay_load=False)
-            self.mm_projector = build_vision_projector(config)
+            self.mm_projector = build_vision_projector(config, self.vision_encoder.hidden_size)
 
     def get_vision_encoder(self):
         vision_encoder = getattr(self, 'vision_encoder', None)

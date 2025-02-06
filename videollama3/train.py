@@ -515,6 +515,7 @@ def train(attn_implementation=None):
     config.use_token_compression = model_args.use_token_compression
 
     if model_args.vision_encoder is not None:
+        config.vision_encoder = model_args.vision_encoder
         model = VLLMs[model_args.model_type].from_pretrained(
             model_args.model_path,
             config=config,

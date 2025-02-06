@@ -1,33 +1,63 @@
 import sys
 sys.path.append('./')
 from videollama3 import disable_torch_init, model_init, mm_infer
+from videollama3.mm_utils import load_video, load_images
 
 
 def main():
     disable_torch_init()
 
-    modal = 'text'
-    modal_path = None
-    instruct = 'What is the color of bananas?'
+    modal = "text"
+    conversation = [
+        {
+            "role": "user",
+            "content": "What is the color of bananas?",
+        }
+    ]
 
-    # valid output: The woman is wearing a stylish black leather coat over a red dress, paired with black boots. She carries a small black handbag and has sunglasses on her head. 2691
-    modal = 'image'
-    modal_path = 'assets/sora.png'
-    instruct = 'What is the woman wearing?'
+    modal = "image"
+    frames = load_images("assets/sora.png")[0]
+    conversation = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": "What is the woman wearing?"},
+            ]
+        }
+    ]
 
-    # valid output: The cat is lying on its back, appearing relaxed and content.
-    modal = 'video'
-    modal_path = 'assets/cat_and_chicken.mp4'
-    instruct = 'What is the cat doing?'
+    modal = "video"
+    frames, timestamps = load_video("assets/cat_and_chicken.mp4", fps=1, max_frames=128)
+    conversation = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "video", "timestamps": timestamps, "num_frames": len(frames)},
+                {"type": "text", "text": "What is the cat doing?"},
+            ]
+        }
+    ]
 
-    model_path = ''
+    model_path = "/path/to/your/model"
+    model, processor = model_init(model_path)
 
-    model, processor, tokenizer = model_init(model_path)
+    inputs = processor(
+        images=[frames] if modal != "text" else None,
+        text=conversation,
+        merge_size=2 if modal == "video" else 1,
+        return_tensors="pt",
+    )
+
     output = mm_infer(
-        processor[modal](modal_path, fps=1, max_frames=768) if modal != 'text' else None,
-        instruct, model=model, tokenizer=tokenizer, do_sample=False, modal=modal)
+        inputs,
+        model=model,
+        tokenizer=processor.tokenizer,
+        do_sample=False,
+        modal=modal
+    )
     print(output)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

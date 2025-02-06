@@ -87,10 +87,10 @@ def build_mlp(depth, hidden_size, output_hidden_size):
 
 class SimSpatialConv(nn.Module):
 
-    def __init__(self, config, downsample=(2, 2), padding=1, depth=1, mlp_depth=2):
+    def __init__(self, mm_hidden_size, hidden_size, downsample=(2, 2), padding=1, depth=1, mlp_depth=2):
         super().__init__()
-        self.encoder_hidden_size = encoder_hidden_size = config.mm_hidden_size
-        self.output_hidden_size = output_hidden_size = config.hidden_size
+        self.encoder_hidden_size = encoder_hidden_size = mm_hidden_size
+        self.output_hidden_size = output_hidden_size = hidden_size
         self.downsample = downsample
         self.padding = padding
         self.sampler = nn.Sequential(
@@ -123,13 +123,13 @@ class SimSpatialConv(nn.Module):
 
 
 class MlpGeluProjector(nn.Module):
-    def __init__(self, config, projector_type):
+    def __init__(self, mm_hidden_size, hidden_size, projector_type):
         super().__init__()
 
         mlp_gelu_match = re.match(r"^mlp(\d+)x_gelu$", projector_type)
         mlp_depth = int(mlp_gelu_match.group(1))
 
-        self.readout = build_mlp(mlp_depth, config.mm_hidden_size, config.hidden_size)
+        self.readout = build_mlp(mlp_depth, mm_hidden_size, hidden_size)
 
     def forward(self, x):
         x = self.readout(x)
@@ -143,17 +143,18 @@ class MlpGeluProjector(nn.Module):
         return height * width
 
 
-def build_vision_projector(config, delay_load=False, **kwargs):
+def build_vision_projector(config, mm_hidden_size, delay_load=False, **kwargs):
     # videollama3 projector only support image-wise operation now, i.e., prohibit the temporal aggregation
     projector_type = getattr(config, 'mm_projector_type', 'linear')
+    hidden_size = config.hidden_size
 
     if projector_type == "linear":
         # NOTE: for both linear and mlp2x_gelu projector type, mean pooling is adopted to aggreate video features
-        return nn.Linear(config.mm_hidden_size, config.hidden_size)
+        return nn.Linear(mm_hidden_size, hidden_size)
     elif  projector_type == "simp_spatial_conv":
-        return SimSpatialConv(config)
+        return SimSpatialConv(mm_hidden_size, hidden_size)
     elif projector_type.startswith("mlp"):
-        return MlpGeluProjector(config, projector_type)
+        return MlpGeluProjector(mm_hidden_size, hidden_size, projector_type)
     if projector_type == 'identity':
         return IdentityMap()
 
