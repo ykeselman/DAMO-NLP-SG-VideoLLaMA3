@@ -192,9 +192,137 @@ options:
   	Optional. Number of model processes.
 ```
 
-## 🗝️ Training & Evaluation
+## 🗝️ Training
 
+### Step 1: Prepare training data
+To use our training code, please organize the image and video data as you like under `data_root`, and then use one or more annotation files to record each conversation data and the corresponding image/video path. For example:
+```bash
+data_root
+├── LLaVA-Video-178K
+│   ├── video_1.mp4
+│   └── ...
+├── LLaVA-OneVision-Data
+│   ├── image_1.jpg
+│   └── ...
+├── annotations_video.jsonl
+├── annotations_image.jsonl
+└── ...
+```
+The annotation files are consist of a list of dictionaries, where each item follows the following format:
+```json
+[
+    {
+        "video": "images/xxx.jpg",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<image>\nWhat are the colors of the bus in the image?"
+            },
+            {
+                "from": "gpt",
+                "value": "The bus in the image is white and red."
+            },
+            ...
+        ],
+    }
+    {
+        "video": "videos/xxx.mp4",
+        "conversations": [
+            {
+                "from": "human",
+                "value": "<video>\nWhat are the main activities that take place in the video?"
+            },
+            {
+                "from": "gpt",
+                "value": "The main activities that take place in the video are the preparation of camera equipment by a man, a group of men riding a helicopter, and a man sailing a boat through the water."
+            },
+            ...
+        ],
+    },
+    ...
+]
+```
+For loading and memory efficiency, we recommend to use `.jsonl` files with [huggingface datasets](https://huggingface.co/docs/datasets/loading) format.
+### Step 2: Prepare training script
+We provide some templates in `scripts/train` for all stages. You can modify the variables to fit your settings of data and models based on them. For example:
+```bash
+  --data_folder ./datasets \
+  --data_path ./datasets/annotations_video.jsonl ./datasets/annotations_image.jsonl \
+  --model_path Qwen/Qwen2.5-1.5B-Instruct \
+  --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
+```
+### Step 3: Start training
+Now you can start training with your training scripts:
+```bash
+# VideoLLaMA3 Stage 1
+bash scripts/train/stage1_2b.sh
+# VideoLLaMA3 Stage 2
+bash scripts/train/stage2_2b.sh
+```
+
+
+## ✅ Evaluation
+#### Step 1: Prepare evaluation data
+First, please download the corresponding data according to the official instructions and organize it into the following format:
+<details>
+<summary>Click here to view the dataset directory organization</summary>
+
+```bash
+benchmarks
+└── video
+│   ├── activitynet_qa
+│   │   ├── all_test
+│   │   ├── test_a.json
+│   │   └── test_q.json
+│   ├── charades
+│   │   ├── Charades_v1
+│   │   └── charades_annotations_test-random_prompt.json
+│   ├── egoschema
+│   │   ├── good_clips_git
+│   │   └── questions.json
+│   ├── longvideobench
+│   │   ├── lvb_val.json
+│   │   ├── subtitles
+│   │   └── videos
+│   ├── lvbench
+│   │   ├── video
+│   │   └── video_info.meta.jsonl
+│   ├── mlvu
+│   │   ├── json
+│   │   └── video
+│   ├── mvbench
+│   │   ├── json
+│   │   └── video
+│   ├── nextqa
+│   │   ├── map_vid_vidorID.json
+│   │   ├── NExTVideo
+│   │   └── test.csv
+│   ├── perception_test
+│   │   ├── mc_question_test.json
+│   │   └── videos
+│   ├── tempcompass
+│   │   ├── captioning
+│   │   ├── caption_matching
+│   │   ├── multi-choice
+│   │   ├── videos
+│   │   └── yes_no
+│   ├── videomme
+│   │   ├── subtitles
+│   │   ├── test-00000-of-00001.parquet
+│   │   └── videos
+```
+
+</details>
+
+#### Step 2: Start evaluation
+```bash
+bash scripts/eval/eval_video.sh ${MODEL_PATH} ${BENCHMARKS} ${NUM_NODES} ${NUM_GPUS}
+```
+You can change the directory of benchmarks and outputs via `DATA_ROOT` and `SAVE_DIR` in the evaluation script. Please check the scripts for more detailed usage.
+
+#### Step 3: Add new benchmark
 Coming soon...
+
 
 ## 📑 Citation
 
