@@ -28,7 +28,7 @@ def main():
     ]
 
     modal = "video"
-    frames, timestamps = load_video("assets/cat_and_chicken.mp4", fps=1, max_frames=128)
+    frames, timestamps = load_video("assets/cat_and_chicken.mp4", fps=1, max_frames=180)
     conversation = [
         {
             "role": "user",

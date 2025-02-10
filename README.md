@@ -141,7 +141,7 @@ conversation = [
     {
         "role": "user",
         "content": [
-            {"type": "video", "video": {"video_path": "./assets/cat_and_chicken.mp4", "fps": 1, "max_frames": 128}},
+            {"type": "video", "video": {"video_path": "./assets/cat_and_chicken.mp4", "fps": 1, "max_frames": 180}},
             {"type": "text", "text": "What is the cat doing?"},
         ]
     },
@@ -156,7 +156,7 @@ inputs = processor(
 inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
 if "pixel_values" in inputs:
     inputs["pixel_values"] = inputs["pixel_values"].to(torch.bfloat16)
-output_ids = model.generate(**inputs, max_new_tokens=128)
+output_ids = model.generate(**inputs, max_new_tokens=1024)
 response = processor.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
 print(response)
 ```
