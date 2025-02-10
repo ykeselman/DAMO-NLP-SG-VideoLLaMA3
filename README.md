@@ -51,6 +51,7 @@ VideoLLaMA 3: Frontier Multimodal Foundation Models for Video Understanding</a><
 
 ## 📰 News
 
+* **[2025.02.07]**  🔥🔥 Release our re-captioned high-quality image-text dataset [VL3-Syn7M](https://huggingface.co/datasets/DAMO-NLP-SG/VL3-Syn7M).
 * **[2025.01.26]**  🔥🔥 As of Jan 26, VideoLLaMA3-7B is the best 7B-sized model on [LVBench](https://huggingface.co/spaces/THUDM/LVBench) leaderboard.
 * **[2025.01.24]**  🔥🔥 As of Jan 24, VideoLLaMA3-7B is the best 7B-sized model on [VideoMME](https://video-mme.github.io/home_page.html) leaderboard.
 * **[2025.01.22]**  👋👋 Release technical report of VideoLLaMA 3. If you have works closely related to VideoLLaMA 3 but not mentioned in the paper, feel free to let us know.
