@@ -213,7 +213,7 @@ The annotation files are consist of a list of dictionaries, where each item foll
 ```json
 [
     {
-        "video": "images/xxx.jpg",
+        "image": ["images/xxx.jpg"],
         "conversations": [
             {
                 "from": "human",
@@ -224,10 +224,10 @@ The annotation files are consist of a list of dictionaries, where each item foll
                 "value": "The bus in the image is white and red."
             },
             ...
-        ],
-    }
+        ]
+    },
     {
-        "video": "videos/xxx.mp4",
+        "video": ["videos/xxx.mp4"],
         "conversations": [
             {
                 "from": "human",
@@ -238,7 +238,7 @@ The annotation files are consist of a list of dictionaries, where each item foll
                 "value": "The main activities that take place in the video are the preparation of camera equipment by a man, a group of men riding a helicopter, and a man sailing a boat through the water."
             },
             ...
-        ],
+        ]
     },
     ...
 ]
